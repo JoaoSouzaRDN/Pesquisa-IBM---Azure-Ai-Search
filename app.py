@@ -41,10 +41,15 @@ def search():
         app.logger.error(f"Erro: {error_msg}")
         return jsonify({"error": error_msg}), 500
 
-    # 2. Validação da API Key do Middleware (enviada no cabeçalho X-API-Key)
-    if request.headers.get("X-API-Key") != MIDDLEWARE_API_KEY:
-        app.logger.warning("Tentativa de acesso não autorizado: API Key inválida.")
+       # 2. Validação da API Key do Middleware
+    recebida = request.headers.get("X-API-Key")
+    app.logger.info(f"Chave esperada: {MIDDLEWARE_API_KEY}")
+    app.logger.info(f"Chave recebida da IBM: {recebida}")
+
+    if recebida != MIDDLEWARE_API_KEY:
+        app.logger.warning(f"ACESSO NEGADO: Recebida '{recebida}' mas esperava '{MIDDLEWARE_API_KEY}'")
         return jsonify({"error": "Unauthorized: Invalid Middleware API Key"}), 401
+
 
     # 3. Obter a requisição do watsonx Orchestrate
     try:
