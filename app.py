@@ -13,7 +13,6 @@ AZURE_SEARCH_INDEX_NAME = os.environ.get("AZURE_SEARCH_INDEX_NAME")
 AZURE_SEARCH_API_KEY = os.environ.get("AZURE_SEARCH_API_KEY")
 AZURE_SEARCH_API_VERSION = "2024-07-01"
 MIDDLEWARE_API_KEY = os.environ.get("MIDDLEWARE_API_KEY")
-AZURE_SEARCH_FIELDS = "title, content, url"
 
 @app.route("/", methods=["GET"])
 def home():
@@ -56,10 +55,9 @@ def search():
         "api-key": AZURE_SEARCH_API_KEY
     }
     
-    # Payload para o Azure
+    # Payload para o Azure (Removido o 'select' para evitar erro de campo inexistente)
     payload = {
         "search": query,
-        "select": AZURE_SEARCH_FIELDS,
         "top": 5
     }
 
@@ -76,11 +74,15 @@ def search():
         
         search_results = []
         for doc in results.get('value', []):
-            # Tenta pegar os campos, se não existirem usa um valor padrão
+            # Mapeamento inteligente: tenta os nomes mais comuns do Azure RAG
+            titulo = doc.get('title') or doc.get('metadata_storage_name') or doc.get('id') or 'Sem Título'
+            conteudo = doc.get('content') or doc.get('chunk') or doc.get('text') or 'Sem Conteúdo'
+            link = doc.get('url') or doc.get('metadata_storage_path') or '#'
+
             search_results.append({
-                "title": doc.get('title') or doc.get('metadata_storage_name') or 'Sem Título',
-                "body": doc.get('content') or doc.get('chunk') or doc.get('text') or 'Sem Conteúdo',
-                "url": doc.get('url') or '#'
+                "title": titulo,
+                "body": conteudo,
+                "url": link
             })
         
         return jsonify({"search_results": search_results})
