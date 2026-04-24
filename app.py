@@ -67,24 +67,19 @@ def process_search():
         app.logger.error(f"Erro: {error_msg}")
         return jsonify({"error": error_msg}), 500
 
-       # 2. Validação da API Key do Middleware (Procura em vários lugares)
-    chave_x_api = request.headers.get("X-API-Key")
-    chave_auth = request.headers.get("Authorization")
+    # 2. Validação da API Key do Middleware
+    recebida = request.headers.get("Authorization")
     
-    # Se a IBM enviar como "Bearer teste123", nós limpamos para pegar só "teste123"
-    if chave_auth and chave_auth.startswith("Bearer "):
-        chave_auth = chave_auth.split(" ")[1]
+    # Se a IBM enviar como "ApiKey teste123", nós limpamos o prefixo
+    if recebida and recebida.startswith("ApiKey "):
+        recebida = recebida.replace("ApiKey ", "")
 
-    # A chave recebida será a que não estiver vazia
-    recebida = chave_x_api or chave_auth
-    
-    app.logger.info(f"Chave esperada: {MIDDLEWARE_API_KEY}")
-    app.logger.info(f"Chave recebida (X-API-Key): {chave_x_api}")
-    app.logger.info(f"Chave recebida (Authorization): {request.headers.get('Authorization')}")
+    app.logger.info(f"Chave limpa para comparação: {recebida}")
 
     if recebida != MIDDLEWARE_API_KEY:
-        app.logger.warning(f"ACESSO NEGADO: Nenhuma chave válida encontrada.")
-        return jsonify({"error": "Unauthorized: Invalid Middleware API Key"}), 401
+        app.logger.warning(f"ACESSO NEGADO: Chave '{recebida}' inválida.")
+        return jsonify({"error": "Unauthorized"}), 401
+
 
 
     # 3. Obter a requisição do watsonx Orchestrate
