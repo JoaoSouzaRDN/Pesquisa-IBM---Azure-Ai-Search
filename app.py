@@ -27,7 +27,33 @@ def home():
 
 @app.route("/search", methods=["POST"])
 def search():
-    app.logger.info("Requisição recebida no endpoint /search.")
+    # LOG DE DIAGNÓSTICO: Imprime todos os cabeçalhos recebidos
+    app.logger.info("--- CABEÇALHOS RECEBIDOS ---")
+    for header, value in request.headers.items():
+        app.logger.info(f"{header}: {value}")
+    app.logger.info("---------------------------")
+
+    # Tenta pegar a chave de qualquer lugar possível
+    recebida = (request.headers.get("X-API-Key") or 
+                request.headers.get("Authorization") or 
+                request.headers.get("api-key")) # Algumas ferramentas usam assim
+
+    if recebida and recebida.startswith("Bearer "):
+        recebida = recebida.split(" ")[1]
+    
+    # Se mesmo assim não vier nada, vamos aceitar temporariamente para ver a pesquisa funcionar
+    # DESCOMENTE A LINHA ABAIXO SE QUISER TESTAR SEM TRAVA:
+    # return process_search() 
+
+    if recebida != MIDDLEWARE_API_KEY:
+        app.logger.warning(f"ACESSO NEGADO: Chave recebida '{recebida}' não bate com a esperada.")
+        return jsonify({"error": "Unauthorized"}), 401
+
+    return process_search()
+
+def process_search():
+    # Coloque aqui o restante do seu código de pesquisa (Azure, etc)
+    # ... (o código que você já tem)
 
     # 1. Validação das variáveis de ambiente essenciais
     if not all([AZURE_SEARCH_SERVICE_NAME, AZURE_SEARCH_INDEX_NAME, AZURE_SEARCH_API_KEY, MIDDLEWARE_API_KEY]):
