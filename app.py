@@ -85,6 +85,10 @@ def search():
                 "url": link
             })
         
+        # Adicionado log do que será retornado em caso de sucesso
+        app.logger.info(f"Busca realizada com sucesso. Retornando {len(search_results)} resultados.")
+        app.logger.info(f"Conteúdo do retorno: {search_results}")
+        
         return jsonify({"search_results": search_results})
 
     except Exception as e:
