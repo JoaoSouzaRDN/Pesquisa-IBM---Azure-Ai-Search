@@ -1,11 +1,21 @@
 from flask import Flask, request, jsonify
 import requests
 import os
+import logging
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
+
+# Configuração explícita de logging para garantir que apareça no console (stdout)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
 # Configurações do Azure (Pegando do ambiente do Render)
 AZURE_SEARCH_SERVICE_NAME = os.environ.get("AZURE_SEARCH_SERVICE_NAME")
@@ -22,19 +32,19 @@ def home():
 def search():
     # 1. Captura o que veio da IBM
     auth_header = request.headers.get("Authorization")
-    app.logger.info(f"Header bruto recebido: {auth_header}")
+    logger.info(f"Header bruto recebido: {auth_header}")
 
     # 2. Limpa o prefixo 'ApiKey ' se ele existir
     recebida = auth_header
     if auth_header and auth_header.startswith("ApiKey "):
         recebida = auth_header.replace("ApiKey ", "")
     
-    app.logger.info(f"Chave após limpeza: {recebida}")
-    app.logger.info(f"Chave esperada (do Render): {MIDDLEWARE_API_KEY}")
+    logger.info(f"Chave após limpeza: {recebida}")
+    logger.info(f"Chave esperada (do Render): {MIDDLEWARE_API_KEY}")
 
     # 3. Compara
     if recebida != MIDDLEWARE_API_KEY:
-        app.logger.warning("ACESSO NEGADO: Chaves não conferem.")
+        logger.warning("ACESSO NEGADO: Chaves não conferem.")
         return jsonify({"error": "Unauthorized"}), 401
 
     # 4. Se passou, segue para a pesquisa no Azure
@@ -42,7 +52,7 @@ def search():
         watsonx_request = request.get_json(force=True)
         query = watsonx_request.get('query')
     except Exception as e:
-        app.logger.error(f"Erro ao ler JSON da IBM: {str(e)}")
+        logger.error(f"Erro ao ler JSON da IBM: {str(e)}")
         return jsonify({"error": "Invalid JSON"}), 400
     
     if not query:
@@ -62,12 +72,12 @@ def search():
     }
 
     try:
-        app.logger.info(f"Pesquisando no Azure: {query}")
+        logger.info(f"Pesquisando no Azure: {query}")
         response = requests.post(azure_url, headers=headers, json=payload)
         
         # DEBUG: Se o Azure retornar erro, imprime a mensagem real da Microsoft
         if response.status_code != 200:
-            app.logger.error(f"DETALHE DO ERRO AZURE (Status {response.status_code}): {response.text}")
+            logger.error(f"DETALHE DO ERRO AZURE (Status {response.status_code}): {response.text}")
         
         response.raise_for_status()
         results = response.json()
@@ -85,15 +95,17 @@ def search():
                 "url": link
             })
         
-        # Adicionado log do que será retornado em caso de sucesso
-        app.logger.info(f"Busca realizada com sucesso. Retornando {len(search_results)} resultados.")
-        app.logger.info(f"Conteúdo do retorno: {search_results}")
+        # LOGS DE SUCESSO: Agora usando o logger configurado para aparecer no console
+        logger.info(f"Busca realizada com sucesso para query: '{query}'")
+        logger.info(f"Quantidade de resultados encontrados: {len(search_results)}")
+        logger.info(f"JSON de retorno enviado ao middleware: {search_results}")
         
         return jsonify({"search_results": search_results})
 
     except Exception as e:
-        app.logger.error(f"Erro na integração: {str(e)}")
+        logger.error(f"Erro na integração: {str(e)}")
         return jsonify({"error": "Erro na busca"}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # Garante que o nível de log do Flask também esteja configurado ao rodar
+    app.run(host='0.0.0.0', port=5000, debug=False)
